@@ -2,89 +2,108 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"math"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 )
 
-func pull(i int, a []flv) (t flv, o []flv) {
-	if i < 0 || i >= len(a) {
-		panic(errors.New("Index out of range"))
+func dump_val(mtx [][]node) {
+	fmt.Println("=======")
+	for _, v := range mtx {
+		fmt.Printf("%v %v %v %v\n", v[0].val, v[1].val, v[2].val, v[3].val)
 	}
-	if i == 0 {
-		return a[0], a[1:]
+	fmt.Println("=======")
+}
+
+func dump_vst(mtx [][]node) {
+	fmt.Println("=======")
+	for _, v := range mtx {
+		fmt.Printf("%v %v %v %v\n", v[0].vst, v[1].vst, v[2].vst, v[3].vst)
 	}
-	if i == len(a)-1 {
-		return a[len(a)-1], a[:len(a)-1]
+	fmt.Println("=======")
+}
+
+type node struct {
+	val int
+	vst bool
+}
+
+type space struct {
+	r   int
+	c   int
+	dat [][]node
+	run int
+}
+
+func (s space) check(i int, j int) int {
+	// if a node is zero OR visited true, next node
+	if s.dat[i][j].val == 0 || s.dat[i][j].vst {
+		return 0
 	}
 
-	t = a[i]
-	o = append(o, a[:i-1]...)
-	o = append(o, a[i:]...)
-	return
-}
+	// if a node is non-zero, find relations (compass), set to visited, recursive
+	s.dat[i][j].vst = true
 
-type flv struct {
-	cst int
-	id  int
-}
-
-func Search(t int, s []flv) []flv {
-	if len(s) <= 1 {
-		return s
+	cnt := 1
+	if i-1 >= 0 {
+		// n
+		cnt += s.check(i-1, j)
+	}
+	if i-1 >= 0 && j+1 < s.c {
+		// ne
+		cnt += s.check(i-1, j+1)
+	}
+	if j+1 < s.c {
+		// e
+		cnt += s.check(i, j+1)
+	}
+	if j+1 < s.c && i+1 < s.r {
+		// se
+		cnt += s.check(i+1, j+1)
+	}
+	if i+1 < s.r {
+		// s
+		cnt += s.check(i+1, j)
+	}
+	if i+1 < s.r && j-1 >= 0 {
+		// sw
+		cnt += s.check(i+1, j-1)
+	}
+	if j-1 >= 0 {
+		// w
+		cnt += s.check(i, j-1)
+	}
+	if j-1 >= 0 && i-1 >= 0 {
+		// nw
+		cnt += s.check(i-1, j-1)
 	}
 
-	n := len(s) / 2
-	if s[n].cst == t {
-		return []flv{s[n]}
-	} else if s[n].cst > t {
-		return Search(t, s[n:])
-	}
-	return Search(t, s[:n])
+	return cnt
 }
 
-type cse struct {
-	bgt int
-	chk int
-	dat []flv
-}
+func (s space) Search() string {
 
-func (c cse) Len() int {
-	return len(c.dat) - 1
-}
+	hi, cnt := 0, 0
+	for i, r := range s.dat {
+	C:
+		for j, v := range r {
+			if v.val == 0 {
+				s.dat[i][j].vst = true
+				continue C
+			}
+			if v.vst {
+				continue C
+			}
 
-func (c cse) Less(a int, b int) bool {
-	return c.dat[a].cst > c.dat[b].cst
-}
-
-func (c cse) Swap(a int, b int) {
-	c.dat[a], c.dat[b] = c.dat[b], c.dat[a]
-}
-
-func (c cse) Process() string {
-	sort.Sort(c)
-
-	var t flv
-	var s []flv
-	var a []flv
-
-	for i, _ := range c.dat {
-		t, a = pull(i, c.dat)
-		rdr := math.Abs(float64(t.cst - c.bgt))
-		s = Search(int(rdr), a)
-		if s[0].cst+t.cst == c.bgt {
-			if t.id < s[0].id {
-				return fmt.Sprintf("%v %v", t.id, s[0].id)
-			} else {
-				return fmt.Sprintf("%v %v", s[0].id, t.id)
+			// once we have a value, we search the chain
+			cnt = s.check(i, j)
+			if cnt > hi {
+				hi = cnt
 			}
 		}
 	}
-	return ""
+	return strconv.Itoa(hi)
 }
 
 func Solution(reader *bufio.Reader) string {
@@ -92,47 +111,26 @@ func Solution(reader *bufio.Reader) string {
 	var err error
 
 	ln, _, _ = reader.ReadLine()
-	chk, _ := strconv.Atoi(strings.TrimSpace(string(ln)))
-	sets := []cse{}
+	rows, _ := strconv.Atoi(strings.TrimSpace(string(ln)))
+	ln, _, _ = reader.ReadLine()
+	cols, _ := strconv.Atoi(strings.TrimSpace(string(ln)))
 
-	/*
-		2 chk := v
-		4 bgt := v
-		5 chk := v
-		1 4 5 3 2 cst, id := v, i
-	*/
-
-	out := []string{}
-
-	for range make([]byte, chk) {
-		set := cse{}
-		for i, _ := range make([]byte, 3) {
-			if ln, _, err = reader.ReadLine(); err == nil {
-				ss := strings.TrimSpace(string(ln))
-				switch i {
-				case 0:
-					set.bgt, _ = strconv.Atoi(ss)
-				case 1:
-					set.chk, _ = strconv.Atoi(ss)
-				case 2:
-					set.dat = []flv{}
-					for j, s := range strings.Split(ss, " ") {
-						n, _ := strconv.Atoi(s)
-						set.dat = append(set.dat, flv{cst: n, id: j + 1})
-					}
-				}
+	mtx := make([][]node, rows)
+	for i := range make([]byte, rows) {
+		mtx[i] = make([]node, cols)
+		if ln, _, err = reader.ReadLine(); err == nil {
+			ss := strings.TrimSpace(string(ln))
+			for j, v := range strings.Split(ss, " ") {
+				val, _ := strconv.Atoi(v)
+				mtx[i][j] = node{val: val, vst: false}
 			}
 		}
-
-		out = append(out, set.Process())
-		sets = append(sets, set)
 	}
 
-	if len(sets) != chk {
-		panic(errors.New("Error parsing data"))
-	}
+	spc := space{r: rows, c: cols, dat: mtx}
+	out := spc.Search()
 
-	return strings.Join(out, "\n")
+	return out
 }
 
 func main() {

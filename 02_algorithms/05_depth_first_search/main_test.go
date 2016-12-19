@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	m "github.com/amay0048/ctci/02_algorithms/04_ice_cream"
+	m "github.com/amay0048/ctci/02_algorithms/05_depth_first_search"
 )
 
 func check(e error) {
